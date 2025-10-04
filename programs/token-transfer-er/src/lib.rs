@@ -4,7 +4,7 @@ use ephemeral_rollups_sdk::cpi::DelegateConfig;
 use ephemeral_rollups_sdk::ephem::{commit_accounts, commit_and_undelegate_accounts};
 use anchor_spl::{associated_token::AssociatedToken, token::{Mint, Token, TokenAccount, TransferChecked, transfer_checked}, *};
 
-declare_id!("CCrYfp8ZMfRUpH9JrmMrfJVuCTQU35k83RERzBWUZqnx");
+declare_id!("Fo8sdvp3dAQyh5GZMTjici4TBQ1U4XS79oA73zyjjo4A");
 
 #[ephemeral]
 #[program]

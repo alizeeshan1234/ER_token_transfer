@@ -244,4 +244,23 @@ describe("token-transfer-er", () => {
     console.log(`Sender Escrow Account Owner: ${senderEscrowAccountInfo?.owner}`);
     console.log(`Receiver Escrow Account Owner: ${receiverEscrowAccountInfo?.owner}`);
   });
+
+  it("Withdraw for escrow on-chain", async () => {
+    const amount = new anchor.BN(50);
+
+   const tx = await program.methods.processWithdrawFromEscrow(amount).accountsPartial({
+      signer: user.publicKey,  
+      sender: user.publicKey,  
+      receiver: provider.wallet.publicKey,  
+      mint: wSolMint,
+      senderTokenEscrow: receiverTokenEscrowAccount, 
+      senderEscrowTokenAccount: receiverTokenAccount,
+      receiverTokenEscrow: tokenEscrowAccount,  
+      receiverEscrowTokenAccount: escrowTokenAccount,  
+      tokenProgram: TOKEN_PROGRAM_ID,
+    }).signers([user]).rpc();  
+    console.log(`Transaction Signature: ${tx}`);
+  });
+
 });
+
