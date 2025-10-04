@@ -4,7 +4,7 @@ use ephemeral_rollups_sdk::cpi::DelegateConfig;
 use ephemeral_rollups_sdk::ephem::{commit_accounts, commit_and_undelegate_accounts};
 use anchor_spl::{associated_token::AssociatedToken, token::{Mint, Token, TokenAccount, TransferChecked, transfer_checked}, *};
 
-declare_id!("Fo8sdvp3dAQyh5GZMTjici4TBQ1U4XS79oA73zyjjo4A");
+declare_id!("Fck47p98BWCRecaehGXpC9pyiMXrKqNtskw5ZFxFPAL2");
 
 #[ephemeral]
 #[program]
@@ -129,9 +129,10 @@ pub mod token_transfer_er {
         let receiver_escrow = &mut ctx.accounts.receiver_token_escrow;
 
         require!(amount > 0, ErrorCode::InvalidAmount);
-        require!(sender_escrow.balance >= amount, ErrorCode::InsufficientBalance);
+        // require!(sender_escrow.balance >= amount, ErrorCode::InsufficientBalance);
         require!(sender_escrow.is_delegated == false, ErrorCode::AccountAlreadyDelegated);
         require!(receiver_escrow.is_delegated == false, ErrorCode::AccountAlreadyDelegated);
+        require!(ctx.accounts.sender_escrow_token_account.amount >= amount, ErrorCode::InsufficientBalance);
 
         let mint_ref = ctx.accounts.mint.key();
         let sender_ref = ctx.accounts.sender.key();
@@ -156,13 +157,8 @@ pub mod token_transfer_er {
 
         transfer_checked(cpi_context, amount, ctx.accounts.mint.decimals)?;
 
-        sender_escrow.balance = sender_escrow.balance
-            .checked_sub(amount)
-            .ok_or(ErrorCode::MathOverflow)?;
-
-        receiver_escrow.balance = receiver_escrow.balance
-            .checked_add(amount)
-            .ok_or(ErrorCode::MathOverflow)?;
+        sender_escrow.balance = ctx.accounts.sender_escrow_token_account.amount;
+        receiver_escrow.balance = ctx.accounts.receiver_escrow_token_account.amount;
 
         msg!(
             "Transferred {} tokens on-chain from {} to {}",

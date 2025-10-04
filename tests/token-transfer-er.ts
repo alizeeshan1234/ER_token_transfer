@@ -246,21 +246,22 @@ describe("token-transfer-er", () => {
   });
 
   it("Withdraw for escrow on-chain", async () => {
-    const amount = new anchor.BN(50);
+    const amount = new anchor.BN(1);
 
-   const tx = await program.methods.processWithdrawFromEscrow(amount).accountsPartial({
-      signer: user.publicKey,  
-      sender: user.publicKey,  
-      receiver: provider.wallet.publicKey,  
+    const tx = await program.methods.processWithdrawFromEscrow(amount).accountsPartial({
+      signer: provider.wallet.publicKey,  // Provider signs
+      sender: provider.wallet.publicKey,  // Provider's escrow (has actual tokens)
+      receiver: user.publicKey,  // User receives
       mint: wSolMint,
-      senderTokenEscrow: receiverTokenEscrowAccount, 
-      senderEscrowTokenAccount: receiverTokenAccount,
-      receiverTokenEscrow: tokenEscrowAccount,  
-      receiverEscrowTokenAccount: escrowTokenAccount,  
+      senderTokenEscrow: tokenEscrowAccount,  // Provider's PDA
+      senderEscrowTokenAccount: escrowTokenAccount,  // Provider's token account (has 100 tokens)
+      receiverTokenEscrow: receiverTokenEscrowAccount,  // User's PDA
+      receiverEscrowTokenAccount: receiverTokenAccount,  // User's token account
       tokenProgram: TOKEN_PROGRAM_ID,
-    }).signers([user]).rpc();  
+    }).signers([provider.wallet.payer]).rpc();
+
     console.log(`Transaction Signature: ${tx}`);
-  });
+});
 
 });
 
