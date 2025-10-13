@@ -246,7 +246,7 @@ describe("token-transfer-er", () => {
   });
 
   it("Withdraw for escrow on-chain", async () => {
-    const amount = new anchor.BN(1);
+    const amount = new anchor.BN(51);
 
     const tx = await program.methods.processWithdrawFromEscrow(amount).accountsPartial({
       signer: provider.wallet.publicKey,  // Provider signs

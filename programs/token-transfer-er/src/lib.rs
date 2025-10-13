@@ -4,7 +4,7 @@ use ephemeral_rollups_sdk::cpi::DelegateConfig;
 use ephemeral_rollups_sdk::ephem::{commit_accounts, commit_and_undelegate_accounts};
 use anchor_spl::{associated_token::AssociatedToken, token::{Mint, Token, TokenAccount, TransferChecked, transfer_checked}, *};
 
-declare_id!("Fck47p98BWCRecaehGXpC9pyiMXrKqNtskw5ZFxFPAL2");
+declare_id!("sXhfCv6D62CWq86U468hGjDou6kLzehQgYUPEWqZd3U");
 
 #[ephemeral]
 #[program]
@@ -157,8 +157,8 @@ pub mod token_transfer_er {
 
         transfer_checked(cpi_context, amount, ctx.accounts.mint.decimals)?;
 
-        sender_escrow.balance = ctx.accounts.sender_escrow_token_account.amount;
-        receiver_escrow.balance = ctx.accounts.receiver_escrow_token_account.amount;
+        sender_escrow.balance = ctx.accounts.sender_escrow_token_account.amount.checked_sub(amount).unwrap();
+        receiver_escrow.balance = ctx.accounts.receiver_escrow_token_account.amount.checked_add(amount).unwrap();
 
         msg!(
             "Transferred {} tokens on-chain from {} to {}",
@@ -167,8 +167,8 @@ pub mod token_transfer_er {
             ctx.accounts.receiver.key()
         );
 
-        msg!("Sender escrow balance: {}", sender_escrow.balance);
-        msg!("Receiver escrow balance: {}", receiver_escrow.balance);
+        msg!("Sender escrow balance after: {}", sender_escrow.balance);
+        msg!("Receiver escrow balance after: {}", receiver_escrow.balance);
         Ok(())
     }
 
