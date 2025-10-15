@@ -6,11 +6,6 @@ import { createMint, getAssociatedTokenAddressSync, getOrCreateAssociatedTokenAc
 import { ASSOCIATED_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/utils/token";
 import { min } from "bn.js";
 import * as fs from "fs";
-import {
-  GetCommitmentSignature,
-  MAGIC_CONTEXT_ID,
-  MAGIC_PROGRAM_ID
-} from "@magicblock-labs/ephemeral-rollups-sdk";
 import { sendMagicTransaction, getClosestValidator } from "magic-router-sdk";
 import { web3 } from "@coral-xyz/anchor";
 
@@ -171,7 +166,7 @@ describe("token-transfer-er", () => {
       [provider.wallet.payer],
     );
 
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    await sleepWithAnimation(10);
 
     console.log("Delegated Senders Escrow");
     console.log("Delegation signature", signature);
@@ -192,7 +187,7 @@ describe("token-transfer-er", () => {
       [user]
     );
 
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    await sleepWithAnimation(10);
 
     console.log("Delegated Receivers Escrow");
     console.log("Delegation signature", signature);
@@ -236,7 +231,7 @@ describe("token-transfer-er", () => {
     console.log("Undelegated Balances of Sender and Receiver");
     console.log(`Transaction Signature: ${signature}`);
 
-    await new Promise(resolve => setTimeout(resolve, 5000)); 
+    await sleepWithAnimation(10);
 
     let senderEscrowAccountInfo = await provider.connection.getAccountInfo(tokenEscrowAccount);
     let receiverEscrowAccountInfo = await provider.connection.getAccountInfo(receiverTokenEscrowAccount);
@@ -261,7 +256,45 @@ describe("token-transfer-er", () => {
     }).signers([provider.wallet.payer]).rpc();
 
     console.log(`Transaction Signature: ${tx}`);
+  });
+
+  // it("Commit and Withdraw", async () => {
+  //   let amount = new anchor.BN(10);
+  //   const tx = await program.methods.commitAndWithdraw(amount).accountsPartial({
+  //     payer: provider.wallet.publicKey,
+  //     sender: provider.wallet.publicKey,
+  //     receiver: user.publicKey,
+  //     mint: wSolMint,
+  //     senderTokenEscrow: tokenEscrowAccount,
+  //     senderEscrowTokenAccount: escrowTokenAccount,
+  //     receiverTokenEscrow: receiverTokenEscrowAccount,
+  //     receiverEscrowTokenAccount: receiverTokenAccount,
+  //     tokenProgram: TOKEN_PROGRAM_ID
+  //   }).transaction();
+
+  //   const signature = await sendMagicTransaction(
+  //       routerConnection,
+  //       tx,
+  //       [provider.wallet.payer]
+  //   );
+
+  //   console.log(`Transaction Signature: ${signature}`);
+  //   await sleepWithAnimation(5);
+  // })
+  
 });
 
-});
+async function sleepWithAnimation(seconds: number): Promise<void> {
+  const totalMs = seconds * 1000;
+  const interval = 500; // Update every 500ms
+  const iterations = Math.floor(totalMs / interval);
 
+  for (let i = 0; i < iterations; i++) {
+    const dots = '.'.repeat((i % 3) + 1);
+    process.stdout.write(`\rWaiting${dots}   `);
+    await new Promise(resolve => setTimeout(resolve, interval));
+  }
+
+  // Clear the line
+  process.stdout.write('\r\x1b[K');
+}

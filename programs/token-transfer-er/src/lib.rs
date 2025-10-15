@@ -3,8 +3,12 @@ use ephemeral_rollups_sdk::anchor::{commit, delegate, ephemeral};
 use ephemeral_rollups_sdk::cpi::DelegateConfig;
 use ephemeral_rollups_sdk::ephem::{commit_accounts, commit_and_undelegate_accounts};
 use anchor_spl::{associated_token::AssociatedToken, token::{Mint, Token, TokenAccount, TransferChecked, transfer_checked}, *};
+use ephemeral_rollups_sdk::{ActionArgs, ShortAccountMeta};
+use ephemeral_rollups_sdk::ephem::{MagicInstructionBuilder, MagicAction, CallHandler, CommitType};
+use ephemeral_rollups_sdk::consts::EXTERNAL_CALL_HANDLER_DISCRIMINATOR;
+use anchor_lang::Discriminator;
 
-declare_id!("sXhfCv6D62CWq86U468hGjDou6kLzehQgYUPEWqZd3U");
+declare_id!("4rfCjGBm2btfXb59HCQWrwv2mF1CJmJSxMzctjhZKwD2");
 
 #[ephemeral]
 #[program]
@@ -123,6 +127,7 @@ pub mod token_transfer_er {
         Ok(())
     }
 
+    #[instruction(discriminator = &EXTERNAL_CALL_HANDLER_DISCRIMINATOR)]
     pub fn process_withdraw_from_escrow(ctx: Context<WithdrawFromEscrow>, amount: u64) -> Result<()> {
 
         let sender_escrow = &mut ctx.accounts.sender_token_escrow;
@@ -172,6 +177,71 @@ pub mod token_transfer_er {
         Ok(())
     }
 
+    pub fn commit_and_withdraw(ctx: Context<CommitAndWithdraw>, amount: u64) -> Result<()> {
+
+        let instruction_data = anchor_lang::InstructionData::data(
+            &crate::instruction::ProcessWithdrawFromEscrow { amount }
+        );
+
+        let action_args = ActionArgs {
+            escrow_index: 1,
+            data: instruction_data,
+        };
+
+        let accounts = vec![
+            ShortAccountMeta {
+                pubkey: ctx.accounts.mint.key(),
+                is_writable: false,
+            },
+            ShortAccountMeta {
+                pubkey: ctx.accounts.sender.key(),
+                is_writable: false,
+            },
+            ShortAccountMeta {
+                pubkey: ctx.accounts.receiver.key(),
+                is_writable: false,
+            },
+            ShortAccountMeta {
+                pubkey: ctx.accounts.sender_escrow_token_account.key(),
+                is_writable: true,
+            },
+            ShortAccountMeta {
+                pubkey: ctx.accounts.receiver_escrow_token_account.key(),
+                is_writable: true,
+            },
+            ShortAccountMeta {
+                pubkey: ctx.accounts.token_program.key(),
+                is_writable: false,
+            },
+        ];
+
+        let call_handler = CallHandler {
+            args: action_args,
+            compute_units: 300_000,
+            escrow_authority: ctx.accounts.payer.to_account_info(),
+            destination_program: crate::ID,
+            accounts,
+        };
+
+        let magic_builder = MagicInstructionBuilder {
+            payer: ctx.accounts.payer.to_account_info(),
+            magic_context: ctx.accounts.magic_context.to_account_info(),
+            magic_program: ctx.accounts.magic_program.to_account_info(),
+            magic_action: MagicAction::Commit(CommitType::WithHandler {
+                commited_accounts: vec![
+                    ctx.accounts.sender_token_escrow.to_account_info(),
+                    ctx.accounts.receiver_token_escrow.to_account_info(),
+                ],
+                call_handlers: vec![call_handler],
+            }),
+        };
+
+        magic_builder.build_and_invoke()?;
+
+        msg!("Committed and triggered withdrawal successfully!");
+
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -314,6 +384,93 @@ pub struct UndelegateAccount<'info> {
 pub struct WithdrawFromEscrow<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
+
+    pub sender: AccountInfo<'info>,
+
+    pub receiver: AccountInfo<'info>,
+
+    pub mint: Account<'info, Mint>,
+
+    #[account(
+        mut,
+        seeds = [b"token_escrow", mint.key().as_ref(), sender.key().as_ref()],
+        bump = sender_token_escrow.bump,
+    )]
+    pub sender_token_escrow: Account<'info, TokenEscrow>,
+
+    #[account(
+        mut,
+        associated_token::mint = mint,
+        associated_token::authority = sender_token_escrow
+    )]
+    pub sender_escrow_token_account: Account<'info, TokenAccount>,
+
+    #[account(
+        mut,
+        seeds = [b"token_escrow", mint.key().as_ref(), receiver.key().as_ref()],
+        bump = receiver_token_escrow.bump,
+    )]
+    pub receiver_token_escrow: Account<'info, TokenEscrow>,
+
+    #[account(
+        mut,
+        associated_token::mint = mint,
+        associated_token::authority = receiver_token_escrow
+    )]
+    pub receiver_escrow_token_account: Account<'info, TokenAccount>,
+
+    pub token_program: Program<'info, Token>,
+}
+
+
+#[commit]
+#[derive(Accounts)]
+pub struct CommitAndWithdraw<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
+    pub sender: AccountInfo<'info>,
+
+    pub receiver: AccountInfo<'info>,
+
+    pub mint: Account<'info, Mint>,
+
+    #[account(
+        mut,
+        seeds = [b"token_escrow", mint.key().as_ref(), sender.key().as_ref()],
+        bump = sender_token_escrow.bump,
+    )]
+    pub sender_token_escrow: Account<'info, TokenEscrow>,
+
+    #[account(
+        mut,
+        associated_token::mint = mint,
+        associated_token::authority = sender_token_escrow
+    )]
+    pub sender_escrow_token_account: Account<'info, TokenAccount>,
+
+    #[account(
+        mut,
+        seeds = [b"token_escrow", mint.key().as_ref(), receiver.key().as_ref()],
+        bump = receiver_token_escrow.bump,
+    )]
+    pub receiver_token_escrow: Account<'info, TokenEscrow>,
+
+    #[account(
+        mut,
+        associated_token::mint = mint,
+        associated_token::authority = receiver_token_escrow
+    )]
+    pub receiver_escrow_token_account: Account<'info, TokenAccount>,
+
+    pub token_program: Program<'info, Token>,
+}
+
+#[commit]
+#[derive(Accounts)]
+pub struct UndelegateAndWithdraw<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
 
     pub sender: AccountInfo<'info>,
 
