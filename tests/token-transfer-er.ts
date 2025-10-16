@@ -212,75 +212,75 @@ describe("token-transfer-er", () => {
     console.log(`Token Transfer ER Transaction Signature: ${signature}`);
   });
 
-  it("Undelegate Sender and Receiver Escrow Account", async () => {
-    const tx = await program.methods.processCommitAndUndelegate().accountsPartial({
-      payer: provider.wallet.publicKey,
-      sender: provider.wallet.publicKey,
-      receiver: user.publicKey,
-      mint: wSolMint,
-      senderTokenEscrow: tokenEscrowAccount,
-      receiverTokenEscrow: receiverTokenEscrowAccount,
-    }).transaction();
-
-    const signature = await sendMagicTransaction(
-      routerConnection,
-      tx,
-      [provider.wallet.payer]
-    );
-
-    console.log("Undelegated Balances of Sender and Receiver");
-    console.log(`Transaction Signature: ${signature}`);
-
-    await sleepWithAnimation(10);
-
-    let senderEscrowAccountInfo = await provider.connection.getAccountInfo(tokenEscrowAccount);
-    let receiverEscrowAccountInfo = await provider.connection.getAccountInfo(receiverTokenEscrowAccount);
-
-    console.log(`Sender Escrow Account Owner: ${senderEscrowAccountInfo?.owner}`);
-    console.log(`Receiver Escrow Account Owner: ${receiverEscrowAccountInfo?.owner}`);
-  });
-
-  it("Withdraw for escrow on-chain", async () => {
-    const amount = new anchor.BN(51);
-
-    const tx = await program.methods.processWithdrawFromEscrow(amount).accountsPartial({
-      signer: provider.wallet.publicKey,  // Provider signs
-      sender: provider.wallet.publicKey,  // Provider's escrow (has actual tokens)
-      receiver: user.publicKey,  // User receives
-      mint: wSolMint,
-      senderTokenEscrow: tokenEscrowAccount,  // Provider's PDA
-      senderEscrowTokenAccount: escrowTokenAccount,  // Provider's token account (has 100 tokens)
-      receiverTokenEscrow: receiverTokenEscrowAccount,  // User's PDA
-      receiverEscrowTokenAccount: receiverTokenAccount,  // User's token account
-      tokenProgram: TOKEN_PROGRAM_ID,
-    }).signers([provider.wallet.payer]).rpc();
-
-    console.log(`Transaction Signature: ${tx}`);
-  });
-
-  // it("Commit and Withdraw", async () => {
-  //   let amount = new anchor.BN(10);
-  //   const tx = await program.methods.commitAndWithdraw(amount).accountsPartial({
+  // it("Undelegate Sender and Receiver Escrow Account", async () => {
+  //   const tx = await program.methods.processCommitAndUndelegate().accountsPartial({
   //     payer: provider.wallet.publicKey,
   //     sender: provider.wallet.publicKey,
   //     receiver: user.publicKey,
   //     mint: wSolMint,
   //     senderTokenEscrow: tokenEscrowAccount,
-  //     senderEscrowTokenAccount: escrowTokenAccount,
   //     receiverTokenEscrow: receiverTokenEscrowAccount,
-  //     receiverEscrowTokenAccount: receiverTokenAccount,
-  //     tokenProgram: TOKEN_PROGRAM_ID
   //   }).transaction();
 
   //   const signature = await sendMagicTransaction(
-  //       routerConnection,
-  //       tx,
-  //       [provider.wallet.payer]
+  //     routerConnection,
+  //     tx,
+  //     [provider.wallet.payer]
   //   );
 
+  //   console.log("Undelegated Balances of Sender and Receiver");
   //   console.log(`Transaction Signature: ${signature}`);
-  //   await sleepWithAnimation(5);
-  // })
+
+  //   await sleepWithAnimation(10);
+
+  //   let senderEscrowAccountInfo = await provider.connection.getAccountInfo(tokenEscrowAccount);
+  //   let receiverEscrowAccountInfo = await provider.connection.getAccountInfo(receiverTokenEscrowAccount);
+
+  //   console.log(`Sender Escrow Account Owner: ${senderEscrowAccountInfo?.owner}`);
+  //   console.log(`Receiver Escrow Account Owner: ${receiverEscrowAccountInfo?.owner}`);
+  // });
+
+  // it("Withdraw for escrow on-chain", async () => {
+  //   const amount = new anchor.BN(51);
+
+  //   const tx = await program.methods.processWithdrawFromEscrow(amount).accountsPartial({
+  //     signer: provider.wallet.publicKey,  // Provider signs
+  //     sender: provider.wallet.publicKey,  // Provider's escrow (has actual tokens)
+  //     receiver: user.publicKey,  // User receives
+  //     mint: wSolMint,
+  //     senderTokenEscrow: tokenEscrowAccount,  // Provider's PDA
+  //     senderEscrowTokenAccount: escrowTokenAccount,  // Provider's token account (has 100 tokens)
+  //     receiverTokenEscrow: receiverTokenEscrowAccount,  // User's PDA
+  //     receiverEscrowTokenAccount: receiverTokenAccount,  // User's token account
+  //     tokenProgram: TOKEN_PROGRAM_ID,
+  //   }).signers([provider.wallet.payer]).rpc();
+
+  //   console.log(`Transaction Signature: ${tx}`);
+  // });
+
+  it("Commit and Withdraw", async () => {
+    let amount = new anchor.BN(10);
+    const tx = await program.methods.commitAndWithdraw(amount).accountsPartial({
+      payer: provider.wallet.publicKey,
+      sender: provider.wallet.publicKey,
+      receiver: user.publicKey,
+      mint: wSolMint,
+      senderTokenEscrow: tokenEscrowAccount,
+      senderEscrowTokenAccount: escrowTokenAccount,
+      receiverTokenEscrow: receiverTokenEscrowAccount,
+      receiverEscrowTokenAccount: receiverTokenAccount,
+      tokenProgram: TOKEN_PROGRAM_ID
+    }).transaction();
+
+    const signature = await sendMagicTransaction(
+        routerConnection,
+        tx,
+        [provider.wallet.payer]
+    );
+
+    console.log(`Transaction Signature: ${signature}`);
+    await sleepWithAnimation(5);
+  })
   
 });
 

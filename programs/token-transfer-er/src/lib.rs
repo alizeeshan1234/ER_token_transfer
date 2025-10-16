@@ -8,7 +8,7 @@ use ephemeral_rollups_sdk::ephem::{MagicInstructionBuilder, MagicAction, CallHan
 use ephemeral_rollups_sdk::consts::EXTERNAL_CALL_HANDLER_DISCRIMINATOR;
 use anchor_lang::Discriminator;
 
-declare_id!("4rfCjGBm2btfXb59HCQWrwv2mF1CJmJSxMzctjhZKwD2");
+declare_id!("6yRXYpMb1A3GYq165ZmULS1vKqNkQqFvYea2N7BpQQEW");
 
 #[ephemeral]
 #[program]
@@ -231,6 +231,8 @@ pub mod token_transfer_er {
                 commited_accounts: vec![
                     ctx.accounts.sender_token_escrow.to_account_info(),
                     ctx.accounts.receiver_token_escrow.to_account_info(),
+                    ctx.accounts.sender_escrow_token_account.to_account_info(),  
+                    ctx.accounts.receiver_escrow_token_account.to_account_info(),
                 ],
                 call_handlers: vec![call_handler],
             }),
