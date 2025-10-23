@@ -1,14 +1,19 @@
 use anchor_lang::prelude::*;
+use anchor_lang::Discriminator;
+use anchor_spl::{
+    associated_token::AssociatedToken,
+    token::{transfer_checked, Mint, Token, TokenAccount, TransferChecked},
+    *,
+};
+
 use ephemeral_rollups_sdk::anchor::{commit, delegate, ephemeral};
+use ephemeral_rollups_sdk::consts::EXTERNAL_CALL_HANDLER_DISCRIMINATOR;
 use ephemeral_rollups_sdk::cpi::DelegateConfig;
 use ephemeral_rollups_sdk::ephem::{commit_accounts, commit_and_undelegate_accounts};
-use anchor_spl::{associated_token::AssociatedToken, token::{Mint, Token, TokenAccount, TransferChecked, transfer_checked}, *};
+use ephemeral_rollups_sdk::ephem::{CallHandler, CommitType, MagicAction, MagicInstructionBuilder};
 use ephemeral_rollups_sdk::{ActionArgs, ShortAccountMeta};
-use ephemeral_rollups_sdk::ephem::{MagicInstructionBuilder, MagicAction, CallHandler, CommitType};
-use ephemeral_rollups_sdk::consts::EXTERNAL_CALL_HANDLER_DISCRIMINATOR;
-use anchor_lang::Discriminator;
 
-declare_id!("6yRXYpMb1A3GYq165ZmULS1vKqNkQqFvYea2N7BpQQEW");
+declare_id!("2Fnb18SDZHotKRnGHiq5eFG3CV9qwa1FPSX5qnpCs2tR");
 
 #[ephemeral]
 #[program]
@@ -21,7 +26,6 @@ pub mod token_transfer_er {
     }
 
     pub fn create_token_escrow(ctx: Context<CreateTokenEscrow>) -> Result<()> {
-
         let token_escrow_account_info = &mut ctx.accounts.token_escrow;
 
         token_escrow_account_info.authority = ctx.accounts.authority.key();
@@ -37,19 +41,27 @@ pub mod token_transfer_er {
     }
 
     pub fn process_token_escrow_deposit(ctx: Context<EscrowDeposit>, amount: u64) -> Result<()> {
-
         let token_escrow_account = &mut ctx.accounts.token_escrow;
 
-        require!(token_escrow_account.authority == ctx.accounts.authority.key(), ErrorCode::InvalidAuthority);
-        require!(token_escrow_account.is_delegated == false, ErrorCode::AccountAlreadyDelegated);
+        require!(
+            token_escrow_account.authority == ctx.accounts.authority.key(),
+            ErrorCode::InvalidAuthority
+        );
+        require!(
+            token_escrow_account.is_delegated == false,
+            ErrorCode::AccountAlreadyDelegated
+        );
         require!(amount > 0, ErrorCode::InvalidAmount);
-        require!(ctx.accounts.user_token_account.amount >= amount, ErrorCode::InsufficientBalance);
+        require!(
+            ctx.accounts.user_token_account.amount >= amount,
+            ErrorCode::InsufficientBalance
+        );
 
         let cpi_accounts = TransferChecked {
             from: ctx.accounts.user_token_account.to_account_info(),
             to: ctx.accounts.escrow_token_account.to_account_info(),
             mint: ctx.accounts.mint.to_account_info(),
-            authority: ctx.accounts.authority.to_account_info()
+            authority: ctx.accounts.authority.to_account_info(),
         };
 
         let cpi_program = ctx.accounts.token_program.to_account_info();
@@ -57,47 +69,60 @@ pub mod token_transfer_er {
 
         transfer_checked(cpi_context, amount, ctx.accounts.mint.decimals)?;
 
-        token_escrow_account.balance = token_escrow_account.balance.checked_add(amount).ok_or(ErrorCode::MathOverflow)?;
+        token_escrow_account.balance = token_escrow_account
+            .balance
+            .checked_add(amount)
+            .ok_or(ErrorCode::MathOverflow)?;
 
         msg!("Deposited {} tokens to escrow", amount);
         msg!("New escrow balance: {}", token_escrow_account.balance);
 
         Ok(())
-
     }
 
-    pub fn delegate_escrow(ctx: Context<DelegateAccount>, commet_frequency: u32, validator_key: Pubkey) -> Result<()> {
-
+    pub fn delegate_escrow(
+        ctx: Context<DelegateAccount>,
+        commet_frequency: u32,
+        validator_key: Pubkey,
+    ) -> Result<()> {
         let delegate_config = DelegateConfig {
             commit_frequency_ms: commet_frequency,
-            validator: Some(validator_key), 
+            validator: Some(validator_key),
         };
 
         let mint_ref = ctx.accounts.mint.key();
         let authority_ref = ctx.accounts.payer.key();
-        let seeds = &[
-            b"token_escrow",
-            mint_ref.as_ref(),
-            authority_ref.as_ref()
-        ];
+        let seeds = &[b"token_escrow", mint_ref.as_ref(), authority_ref.as_ref()];
 
-        ctx.accounts.delegate_token_escrow(&ctx.accounts.payer, seeds, delegate_config)?;
+        ctx.accounts
+            .delegate_token_escrow(&ctx.accounts.payer, seeds, delegate_config)?;
 
         msg!("Token Escrow Account Delegated to ER");
 
         Ok(())
     }
 
-    pub fn token_escrow_transfer_er(ctx: Context<TokenEscrowTransferER>, amount: u64) -> Result<()> {
-
+    pub fn token_escrow_transfer_er(
+        ctx: Context<TokenEscrowTransferER>,
+        amount: u64,
+    ) -> Result<()> {
         require!(amount > 0, ErrorCode::InvalidAmount);
-        require!(ctx.accounts.sender_escrow_account.balance >= amount, ErrorCode::InsufficientBalance);
+        require!(
+            ctx.accounts.sender_escrow_account.balance >= amount,
+            ErrorCode::InsufficientBalance
+        );
 
-        ctx.accounts.sender_escrow_account.balance = ctx.accounts.sender_escrow_account.balance
+        ctx.accounts.sender_escrow_account.balance = ctx
+            .accounts
+            .sender_escrow_account
+            .balance
             .checked_sub(amount)
             .ok_or(ErrorCode::MathOverflow)?;
 
-        ctx.accounts.recever_escrow_account.balance = ctx.accounts.recever_escrow_account.balance
+        ctx.accounts.recever_escrow_account.balance = ctx
+            .accounts
+            .recever_escrow_account
+            .balance
             .checked_add(amount)
             .ok_or(ErrorCode::MathOverflow)?;
 
@@ -107,42 +132,58 @@ pub mod token_transfer_er {
             ctx.accounts.sender.key(),
             ctx.accounts.receiver.key()
         );
-        msg!("From balance: {}", ctx.accounts.sender_escrow_account.balance);
-        msg!("To balance: {}", ctx.accounts.recever_escrow_account.balance);
+        msg!(
+            "From balance: {}",
+            ctx.accounts.sender_escrow_account.balance
+        );
+        msg!(
+            "To balance: {}",
+            ctx.accounts.recever_escrow_account.balance
+        );
         Ok(())
     }
 
     pub fn process_commit_and_undelegate(ctx: Context<UndelegateAccount>) -> Result<()> {
-
         commit_and_undelegate_accounts(
             &ctx.accounts.payer,
             vec![
                 &ctx.accounts.sender_token_escrow.to_account_info(),
                 &ctx.accounts.receiver_token_escrow.to_account_info(),
-            ], 
-            &ctx.accounts.magic_context, 
-            &ctx.accounts.magic_program
+            ],
+            &ctx.accounts.magic_context,
+            &ctx.accounts.magic_program,
         )?;
 
         Ok(())
     }
 
     #[instruction(discriminator = &EXTERNAL_CALL_HANDLER_DISCRIMINATOR)]
-    pub fn process_withdraw_from_escrow(ctx: Context<WithdrawFromEscrow>, amount: u64) -> Result<()> {
-
+    pub fn process_withdraw_from_escrow(
+        ctx: Context<WithdrawFromEscrow>,
+        amount: u64,
+    ) -> Result<()> {
         let sender_escrow = &mut ctx.accounts.sender_token_escrow;
         let receiver_escrow = &mut ctx.accounts.receiver_token_escrow;
 
         require!(amount > 0, ErrorCode::InvalidAmount);
         // require!(sender_escrow.balance >= amount, ErrorCode::InsufficientBalance);
-        require!(sender_escrow.is_delegated == false, ErrorCode::AccountAlreadyDelegated);
-        require!(receiver_escrow.is_delegated == false, ErrorCode::AccountAlreadyDelegated);
-        require!(ctx.accounts.sender_escrow_token_account.amount >= amount, ErrorCode::InsufficientBalance);
+        require!(
+            sender_escrow.is_delegated == false,
+            ErrorCode::AccountAlreadyDelegated
+        );
+        require!(
+            receiver_escrow.is_delegated == false,
+            ErrorCode::AccountAlreadyDelegated
+        );
+        require!(
+            ctx.accounts.sender_escrow_token_account.amount >= amount,
+            ErrorCode::InsufficientBalance
+        );
 
         let mint_ref = ctx.accounts.mint.key();
         let sender_ref = ctx.accounts.sender.key();
         let bump = sender_escrow.bump;
-    
+
         let signer_seeds: &[&[&[u8]]] = &[&[
             b"token_escrow",
             mint_ref.as_ref(),
@@ -162,8 +203,18 @@ pub mod token_transfer_er {
 
         transfer_checked(cpi_context, amount, ctx.accounts.mint.decimals)?;
 
-        sender_escrow.balance = ctx.accounts.sender_escrow_token_account.amount.checked_sub(amount).unwrap();
-        receiver_escrow.balance = ctx.accounts.receiver_escrow_token_account.amount.checked_add(amount).unwrap();
+        sender_escrow.balance = ctx
+            .accounts
+            .sender_escrow_token_account
+            .amount
+            .checked_sub(amount)
+            .unwrap();
+        receiver_escrow.balance = ctx
+            .accounts
+            .receiver_escrow_token_account
+            .amount
+            .checked_add(amount)
+            .unwrap();
 
         msg!(
             "Transferred {} tokens on-chain from {} to {}",
@@ -178,10 +229,10 @@ pub mod token_transfer_er {
     }
 
     pub fn commit_and_withdraw(ctx: Context<CommitAndWithdraw>, amount: u64) -> Result<()> {
-
-        let instruction_data = anchor_lang::InstructionData::data(
-            &crate::instruction::ProcessWithdrawFromEscrow { amount }
-        );
+        let instruction_data =
+            anchor_lang::InstructionData::data(&crate::instruction::ProcessWithdrawFromEscrow {
+                amount,
+            });
 
         let action_args = ActionArgs {
             escrow_index: 1,
@@ -231,8 +282,6 @@ pub mod token_transfer_er {
                 commited_accounts: vec![
                     ctx.accounts.sender_token_escrow.to_account_info(),
                     ctx.accounts.receiver_token_escrow.to_account_info(),
-                    ctx.accounts.sender_escrow_token_account.to_account_info(),  
-                    ctx.accounts.receiver_escrow_token_account.to_account_info(),
                 ],
                 call_handlers: vec![call_handler],
             }),
@@ -278,7 +327,7 @@ pub struct CreateTokenEscrow<'info> {
 
     pub token_program: Program<'info, Token>,
 
-    pub associated_token_program: Program<'info, AssociatedToken>
+    pub associated_token_program: Program<'info, AssociatedToken>,
 }
 
 #[derive(Accounts)]
@@ -329,7 +378,6 @@ pub struct DelegateAccount<'info> {
     )]
     pub token_escrow: Account<'info, TokenEscrow>,
 }
-
 
 #[derive(Accounts)]
 pub struct TokenEscrowTransferER<'info> {
@@ -424,7 +472,6 @@ pub struct WithdrawFromEscrow<'info> {
     pub token_program: Program<'info, Token>,
 }
 
-
 #[commit]
 #[derive(Accounts)]
 pub struct CommitAndWithdraw<'info> {
@@ -445,7 +492,7 @@ pub struct CommitAndWithdraw<'info> {
     pub sender_token_escrow: Account<'info, TokenEscrow>,
 
     #[account(
-        mut,
+        // mut,
         associated_token::mint = mint,
         associated_token::authority = sender_token_escrow
     )]
@@ -459,7 +506,7 @@ pub struct CommitAndWithdraw<'info> {
     pub receiver_token_escrow: Account<'info, TokenEscrow>,
 
     #[account(
-        mut,
+        // mut,
         associated_token::mint = mint,
         associated_token::authority = receiver_token_escrow
     )]
@@ -531,5 +578,5 @@ pub enum ErrorCode {
     AccountAlreadyDelegated,
     InvalidAmount,
     InsufficientBalance,
-    MathOverflow
+    MathOverflow,
 }

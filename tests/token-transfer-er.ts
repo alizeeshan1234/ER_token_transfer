@@ -39,7 +39,7 @@ describe("token-transfer-er", () => {
     }
   );
 
- before(async () => {
+before(async () => {
     console.log(provider.wallet.publicKey);
     console.log(user.publicKey);
     wSolMint = await createMint (
