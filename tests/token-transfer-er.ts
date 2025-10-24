@@ -269,7 +269,8 @@ before(async () => {
       senderEscrowTokenAccount: escrowTokenAccount,
       receiverTokenEscrow: receiverTokenEscrowAccount,
       receiverEscrowTokenAccount: receiverTokenAccount,
-      tokenProgram: TOKEN_PROGRAM_ID
+      tokenProgram: TOKEN_PROGRAM_ID,
+      programId: program.programId,
     }).transaction();
 
     const signature = await sendMagicTransaction(
