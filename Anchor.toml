@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-token_transfer_er = "3DasApHLFfUqmCMr7PyE6jK9ZmMBieJHoy23Hujx3LDc"
+token_transfer_er = "Ca4xPb98M69sRwubdCB7c8kdRi3vAUTtVWMkz4JWzXr9"
 
 [registry]
 url = "https://api.apr.dev"

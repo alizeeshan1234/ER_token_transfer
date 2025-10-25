@@ -13,7 +13,7 @@ use ephemeral_rollups_sdk::ephem::{commit_accounts, commit_and_undelegate_accoun
 use ephemeral_rollups_sdk::ephem::{CallHandler, CommitType, MagicAction, MagicInstructionBuilder};
 use ephemeral_rollups_sdk::{ActionArgs, ShortAccountMeta};
 
-declare_id!("HvQsGEdzaL5vXBAb9w9zvDp7M2i9PnFN6mhvpfGD5fNr");
+declare_id!("Ca4xPb98M69sRwubdCB7c8kdRi3vAUTtVWMkz4JWzXr9");
 
 #[ephemeral]
 #[program]
@@ -157,76 +157,80 @@ pub mod token_transfer_er {
         Ok(())
     }
 
-    #[instruction(discriminator = &EXTERNAL_CALL_HANDLER_DISCRIMINATOR)]
+    // #[instruction(discriminator = &EXTERNAL_CALL_HANDLER_DISCRIMINATOR)]
     pub fn process_withdraw_from_escrow(
         ctx: Context<WithdrawFromEscrow>,
         amount: u64,
     ) -> Result<()> {
-        // let sender_escrow = &mut ctx.accounts.sender_token_escrow;
-        // let receiver_escrow = &mut ctx.accounts.receiver_token_escrow;
 
-        // require!(amount > 0, ErrorCode::InvalidAmount);
-        // require!(
-        //     sender_escrow.is_delegated == false,
-        //     ErrorCode::AccountAlreadyDelegated
-        // );
-        // require!(
-        //     receiver_escrow.is_delegated == false,
-        //     ErrorCode::AccountAlreadyDelegated
-        // );
-        // require!(
-        //     ctx.accounts.sender_escrow_token_account.amount >= amount,
-        //     ErrorCode::InsufficientBalance
-        // );
+        let sender_escrow = &mut ctx.accounts.sender_token_escrow;
+        let receiver_escrow = &mut ctx.accounts.receiver_token_escrow;
 
-        // let mint_ref = ctx.accounts.mint.key();
-        // let sender_ref = ctx.accounts.sender.key();
-        // let bump = sender_escrow.bump;
+        require!(amount > 0, ErrorCode::InvalidAmount);
+        require!(
+            sender_escrow.is_delegated == false,
+            ErrorCode::AccountAlreadyDelegated
+        );
+        require!(
+            receiver_escrow.is_delegated == false,
+            ErrorCode::AccountAlreadyDelegated
+        );
+        require!(
+            ctx.accounts.sender_escrow_token_account.amount >= amount,
+            ErrorCode::InsufficientBalance
+        );
 
-        // let signer_seeds: &[&[&[u8]]] = &[&[
-        //     b"token_escrow",
-        //     mint_ref.as_ref(),
-        //     sender_ref.as_ref(),
-        //     &[bump],
-        // ]];
+        let mint_ref = ctx.accounts.mint.key();
+        let sender_ref = ctx.accounts.sender.key();
+        let bump = sender_escrow.bump;
 
-        // let cpi_accounts = TransferChecked {
-        //     from: ctx.accounts.sender_escrow_token_account.to_account_info(),
-        //     to: ctx.accounts.receiver_escrow_token_account.to_account_info(),
-        //     mint: ctx.accounts.mint.to_account_info(),
-        //     authority: sender_escrow.to_account_info(), // PDA is the authority
-        // };
+        let signer_seeds: &[&[&[u8]]] = &[&[
+            b"token_escrow",
+            mint_ref.as_ref(),
+            sender_ref.as_ref(),
+            &[bump],
+        ]];
 
-        // let cpi_program = ctx.accounts.token_program.to_account_info();
-        // let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+        let cpi_accounts = TransferChecked {
+            from: ctx.accounts.sender_escrow_token_account.to_account_info(),
+            to: ctx.accounts.receiver_escrow_token_account.to_account_info(),
+            mint: ctx.accounts.mint.to_account_info(),
+            authority: sender_escrow.to_account_info(), // PDA is the authority
+        };
 
-        // transfer_checked(cpi_context, amount, ctx.accounts.mint.decimals)?;
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
 
-        // sender_escrow.balance = ctx
-        //     .accounts
-        //     .sender_escrow_token_account
-        //     .amount
-        //     .checked_sub(amount)
-        //     .unwrap();
-        // receiver_escrow.balance = ctx
-        //     .accounts
-        //     .receiver_escrow_token_account
-        //     .amount
-        //     .checked_add(amount)
-        //     .unwrap();
+        transfer_checked(cpi_context, amount, ctx.accounts.mint.decimals)?;
 
-        // msg!(
-        //     "Transferred {} tokens on-chain from {} to {}",
-        //     amount,
-        //     ctx.accounts.sender.key(),
-        //     ctx.accounts.receiver.key()
-        // );
+        sender_escrow.balance = ctx
+            .accounts
+            .sender_escrow_token_account
+            .amount
+            .checked_sub(amount)
+            .unwrap();
+        receiver_escrow.balance = ctx
+            .accounts
+            .receiver_escrow_token_account
+            .amount
+            .checked_add(amount)
+            .unwrap();
 
-        // msg!("Sender escrow balance after: {}", sender_escrow.balance);
-        // msg!("Receiver escrow balance after: {}", receiver_escrow.balance);
+        msg!(
+            "Transferred {} tokens on-chain from {} to {}",
+            amount,
+            ctx.accounts.sender.key(),
+            ctx.accounts.receiver.key()
+        );
+
+        msg!("Sender escrow balance after: {}", sender_escrow.balance);
+        msg!("Receiver escrow balance after: {}", receiver_escrow.balance);
         msg!("lets go");
+        msg!("Hello Solana!");
         Ok(())
     }
+
+
 
     // pub fn commit_and_withdraw(ctx: Context<CommitAndWithdraw>, amount: u64) -> Result<()> {
     //     let instruction_data =
@@ -251,6 +255,14 @@ pub mod token_transfer_er {
     //         ShortAccountMeta {
     //             pubkey: ctx.accounts.mint.key(),
     //             is_writable: false,
+    //         },
+    //         ShortAccountMeta {
+    //             pubkey: ctx.accounts.sender_token_escrow.key(),
+    //             is_writable: true,
+    //         },
+    //         ShortAccountMeta {
+    //             pubkey: ctx.accounts.receiver_token_escrow.key(),
+    //             is_writable: true,
     //         },
     //         ShortAccountMeta {
     //             pubkey: ctx.accounts.sender_escrow_token_account.key(),
@@ -293,80 +305,6 @@ pub mod token_transfer_er {
     
     //     Ok(())
     // }
-
-    pub fn commit_and_withdraw(ctx: Context<CommitAndWithdraw>, amount: u64) -> Result<()> {
-        let instruction_data =
-            anchor_lang::InstructionData::data(&crate::instruction::ProcessWithdrawFromEscrow {
-                amount,
-            });
-    
-        let action_args = ActionArgs {
-            escrow_index: 0, 
-            data: instruction_data,
-        };
-    
-        let accounts = vec![
-            ShortAccountMeta {
-                pubkey: ctx.accounts.sender.key(),
-                is_writable: false,
-            },
-            ShortAccountMeta {
-                pubkey: ctx.accounts.receiver.key(),
-                is_writable: false,
-            },
-            ShortAccountMeta {
-                pubkey: ctx.accounts.mint.key(),
-                is_writable: false,
-            },
-            ShortAccountMeta {
-                pubkey: ctx.accounts.sender_token_escrow.key(),
-                is_writable: true,
-            },
-            ShortAccountMeta {
-                pubkey: ctx.accounts.receiver_token_escrow.key(),
-                is_writable: true,
-            },
-            ShortAccountMeta {
-                pubkey: ctx.accounts.sender_escrow_token_account.key(),
-                is_writable: true,
-            },
-            ShortAccountMeta {
-                pubkey: ctx.accounts.receiver_escrow_token_account.key(),
-                is_writable: true,
-            },
-            ShortAccountMeta {
-                pubkey: ctx.accounts.token_program.key(),
-                is_writable: false,
-            },
-        ];
-    
-        let call_handler = CallHandler {
-            args: action_args,
-            compute_units: 200_000, 
-            escrow_authority: ctx.accounts.payer.to_account_info(),
-            destination_program: crate::ID,
-            accounts,
-        };
-    
-        let magic_builder = MagicInstructionBuilder {
-            payer: ctx.accounts.payer.to_account_info(),
-            magic_context: ctx.accounts.magic_context.to_account_info(),
-            magic_program: ctx.accounts.magic_program.to_account_info(),
-            magic_action: MagicAction::Commit(CommitType::WithHandler {
-                commited_accounts: vec![
-                    ctx.accounts.sender_token_escrow.to_account_info(),
-                    ctx.accounts.receiver_token_escrow.to_account_info(),
-                ],
-                call_handlers: vec![call_handler],
-            }),
-        };
-    
-        magic_builder.build_and_invoke()?;
-    
-        msg!("Committed and triggered withdrawal successfully!");
-    
-        Ok(())
-    }
 }
 
 #[derive(Accounts)]
@@ -506,30 +444,38 @@ pub struct UndelegateAccount<'info> {
 
 #[derive(Accounts)]
 pub struct WithdrawFromEscrow<'info> {
-    /// CHECK: Testing
-    pub sender: UncheckedAccount<'info>,
-    /// CHECK: Testing
-    pub receiver: UncheckedAccount<'info>,
-    /// CHECK: Testing
-    pub mint: UncheckedAccount<'info>,
-    /// CHECK: Testing
+
+    pub sender: Signer<'info>,
+
+    pub receiver: AccountInfo<'info>,
+
+    pub mint: Account<'info, Mint>,
+
+    #[account(
+        mut,
+        seeds = [b"token_escrow", mint.key().as_ref(), sender.key().as_ref()],
+        bump
+    )]
+    pub sender_token_escrow: Account<'info, TokenEscrow>,
+
+    #[account(
+        mut,
+        seeds = [b"token_escrow", mint.key().as_ref(), receiver.key().as_ref()],
+        bump
+    )]
+    pub receiver_token_escrow: Account<'info, TokenEscrow>,
+
     #[account(mut)]
-    pub sender_token_escrow: UncheckedAccount<'info>,
-    /// CHECK: Testing
+    pub sender_escrow_token_account: Account<'info, TokenAccount>,
+
     #[account(mut)]
-    pub receiver_token_escrow: UncheckedAccount<'info>,
-    /// CHECK: Testing
-    #[account(mut)]
-    pub sender_escrow_token_account: UncheckedAccount<'info>,
-    /// CHECK: Testing
-    #[account(mut)]
-    pub receiver_escrow_token_account: UncheckedAccount<'info>,
-    /// CHECK: Testing
-    pub token_program: UncheckedAccount<'info>,
-    /// CHECK: Magic program escrow
-    pub escrow: UncheckedAccount<'info>,
-    /// CHECK: Magic program escrow authority
-    pub escrow_auth: UncheckedAccount<'info>,
+    pub receiver_escrow_token_account: Account<'info, TokenAccount>,
+
+    pub token_program: Program<'info, Token>,
+
+    // pub escrow: UncheckedAccount<'info>,
+
+    // pub escrow_auth: UncheckedAccount<'info>,
 }
 
 #[commit]
